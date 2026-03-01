@@ -1,0 +1,1566 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Narracyjny Formularz Badawczy v54</title>
+    <script type="text/javascript">
+       // Google Apps Script Web App URL (Restored from working configuration)
+        var GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyDrI0EbRyEyQV1W991q156oDf2lZONiUImtpmrgjmb-fNQQQlIN3JxLlqyxfqg2xKw/exec";
+    </script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@100;600&family=VT323&display=swap');
+
+        :root {
+            --phosphor-main: #33FF00;
+            --phosphor-dim: #1a8000;
+        }
+
+        * { box-sizing: border-box; }
+
+        html, body {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            background-color: #0a0a0a; color: var(--phosphor-main);
+            font-family: 'VT323', monospace;
+            overflow: hidden;
+            font-size: 24px;
+            font-weight: 400;
+            image-rendering: pixelated;
+            -webkit-font-smoothing: none;
+            display: flex; align-items: center; justify-content: center;
+        }
+
+        #outer-frame {
+            width: 100vw; height: 100vh; display: flex;
+            align-items: center; justify-content: center; background: #0a0a0a;
+            display: flex; /* Always visible now, no intro layer */
+        }
+
+        #crt-container {
+            width: 95vw; height: 92vh; position: relative;
+            filter: contrast(1.2) brightness(1.1) blur(0.5px);
+        }
+
+        #container {
+            display: flex; flex-direction: column; height: 100%; width: 100%;
+            position: relative; z-index: 2; overflow: hidden;
+        }
+
+        #crt-overlay, #scanline {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+        }
+
+        #crt-overlay {
+            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.2) 50%, rgba(0,0,0,0.2));
+            background-size: 100% 4px; z-index: 10;
+        }
+
+        #scanline {
+            background: linear-gradient(to bottom, transparent 0%, rgba(51, 255, 0, 0.1) 50%, transparent 100%);
+            background-size: 100% 10px; animation: scanline 8s linear infinite; z-index: 11; opacity: 0.5;
+        }
+
+        @keyframes scanline {
+            0% { transform: translateY(-100%); }
+            100% { transform: translateY(100%); }
+        }
+
+        #narrative-window {
+            height: 90%;
+            padding: 30px 20%;
+            overflow-y: auto; overflow-x: hidden;
+            border-bottom: none;
+        }
+
+        #narrative-window.no-scroll {
+            overflow-y: hidden;
+        }
+
+        #terminal-window {
+            height: 10%;
+            background-color: #080808;
+            padding: 10px 20%;
+            display: flex; flex-direction: column; justify-content: flex-end;
+            padding-bottom: 1.5em;
+        }
+
+        .history-text {
+            color: var(--phosphor-dim) !important; margin-bottom: 0.5em; display: block;
+        }
+
+        .current-text {
+            color: var(--phosphor-main) !important; margin-bottom: 0.5em;
+            white-space: pre-wrap; line-height: 1.5;
+        }
+
+        .dialogue {
+            margin-left: 15%; margin-top: 1.5em; margin-bottom: 1.5em;
+            text-align: justify; font-weight: 100; font-style: italic; line-height: 1.6;
+            color: var(--phosphor-main) !important;
+        }
+
+        .dialogue-speaker {
+            display: inline; font-weight: 100; margin-right: 0.5em;
+            color: var(--phosphor-main) !important;
+        }
+
+        .dialogue-text {
+            display: inline; color: var(--phosphor-main) !important;
+        }
+
+        .history-text .dialogue,
+        .history-text .dialogue-speaker,
+        .history-text .dialogue-text {
+            color: var(--phosphor-dim) !important;
+        }
+
+        #input-wrapper {
+            display: flex; align-items: center; width: 100%; margin-top: 10px;
+        }
+
+        .prompt-char {
+            margin-right: 15px; font-weight: bold; font-size: 24px; color: var(--phosphor-main);
+        }
+
+        input[type="text"] {
+            background: transparent; border: none; color: transparent;
+            font-family: inherit; font-size: 20px; flex-grow: 1; outline: none;
+            caret-color: transparent; text-transform: uppercase;
+            position: absolute; left: -9999px;
+        }
+
+        /* Updated display-text structure for cursor logic */
+        #display-text-container {
+            color: var(--phosphor-main); font-size: 20px; position: relative;
+            white-space: pre-wrap; word-break: break-word;
+            display: inline-flex;
+        }
+
+        .cursor-block {
+            display: inline-block; width: 12px; height: 22px;
+            background-color: var(--phosphor-main);
+            animation: blink 1s step-end infinite;
+            vertical-align: middle;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #000; border-left: 1px solid var(--phosphor-dim); }
+        ::-webkit-scrollbar-thumb { background: var(--phosphor-dim); }
+        ::-webkit-scrollbar-thumb:hover { background: var(--phosphor-main); }
+
+        .survey-definition {
+            background-color: white; color: black; padding: 20px;
+            margin: 10px 0; border: 2px solid black; line-height: 1.6;
+        }
+
+        .instruction-text {
+            font-weight: 100 !important;
+            font-style: italic;
+            opacity: 0.8;
+            font-size: 0.9em;
+        }
+
+        #stages-list {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            font-size: 12px;
+            font-weight: 100;
+            color: var(--phosphor-dim);
+            background: rgba(0,0,0,0.8);
+            border: 1px solid var(--phosphor-dim);
+            padding: 10px;
+            display: none;
+            z-index: 100;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        #stages-list table {
+            border-collapse: collapse;
+        }
+        #stages-list td {
+            padding: 2px 10px;
+            border-bottom: 1px solid #1a3000;
+        }
+
+        .special-ending {
+            background-color: white;
+            color: black;
+            padding: 20px;
+            margin: 10px 0;
+            border: 2px solid black;
+            line-height: 1.6;
+            font-family: 'IBM Plex Mono', monospace;
+            font-weight: 600;
+        }
+
+        #timer-display {
+            position: fixed; top: 30px; right: 50px;
+            font-size: 30px; color: #FFB000;
+            display: none; z-index: 20;
+            font-family: 'VT323', monospace;
+        }
+
+        /* Standard ASCII style (VT323) */
+        .ascii-art {
+            font-family: 'Courier New', Courier, 'Lucida Sans Typewriter', 'Lucida Typewriter', monospace;
+            font-size: 14px !important;
+            line-height: 12px !important;
+            white-space: pre;
+            overflow: hidden;
+            font-weight: bold;
+            pointer-events: none;
+        }
+
+        /* Specific style for FemTechxperts (IBM Plex Mono) */
+        .ascii-femtech {
+            font-family: 'Courier New', Courier, 'Lucida Sans Typewriter', 'Lucida Typewriter', monospace !important;
+            font-size: 12px !important;
+            line-height: 12px !important;
+            font-weight: bold;
+            white-space: pre;
+            overflow: hidden;
+            pointer-events: none;
+        }
+
+        /* Small ASCII adjustment */
+        .ascii-small {
+            font-size: 10px !important;
+            line-height: 9px !important;
+        }
+
+        /* Tiny ASCII adjustment for wide logos */
+        .ascii-tiny {
+            font-family: 'Courier New', Courier, 'Lucida Sans Typewriter', 'Lucida Typewriter', monospace;
+            font-size: 8px !important;
+            line-height: 8px !important;
+            white-space: pre;
+            overflow: hidden;
+            font-weight: bold;
+            pointer-events: none;
+        }
+
+        /* Intro Animation Logic & Style */
+        .intro-wrapper {
+            margin-left: auto;
+            margin-right: auto;
+            width: fit-content;
+            transition: all 3s ease-out;
+        }
+
+        .intro-wrapper.shifted {
+            margin-left: 0;
+            margin-right: 0;
+            width: 100%;
+        }
+
+        /* Special style for the Intro ASCII to match the provided pattern */
+        .ascii-intro {
+            font-size: 10px !important;
+            line-height: 10px !important;
+            white-space: pre;
+            overflow: hidden; /* Fix scrollbar issue */
+            font-family: 'Courier New', Courier, 'Lucida Sans Typewriter', 'Lucida Typewriter', monospace;
+            font-weight: bold;
+            pointer-events: none;
+        }
+</style>
+</head>
+<body>
+
+<div id="outer-frame">
+    <div id="crt-container">
+        <div id="crt-overlay"></div>
+        <div id="scanline"></div>
+        <div id="container">
+            <div id="narrative-window"></div>
+            <div id="terminal-window">
+                <div id="input-wrapper">
+                    <span class="prompt-char">&gt;</span>
+                    <div id="display-text-container">
+                        <span id="dt-left"></span>
+                        <div class="cursor-block"></div>
+                        <span id="dt-right"></span>
+                    </div>
+                    <input type="text" id="cmd-input" autocomplete="off" autofocus spellcheck="false">
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="stages-list"></div>
+<div id="timer-display">01:00</div>
+
+<script>
+const TYPE_SPEED = 40;
+
+const videoLengths = {'1': 60, '2': 60, '3': 60, '4': 60, '5': 60, '6': 60};
+const videoLinks = {
+    '1': 'https://drive.google.com/file/d/18y7PSJJcofr6GRxAmD0WosniO5nbebtB/preview',
+    '2': 'https://drive.google.com/file/d/10RD76itC-ySX0IkRo-kHrxH3jma2C7_D/preview',
+    '3': 'https://drive.google.com/file/d/1iKbYk1Z4m5My0GWW7B8ADfTxW6E8Gwxp/preview',
+    '4': 'https://drive.google.com/file/d/154nQT-0Qg9kBjJ-1m7mpm5sTSiDv52Mx/preview',
+    '5': 'https://drive.google.com/file/d/1j0IRNtGVbFWZi4Y2aS9xSEE5XhasXtUs/preview',
+    '6': 'https://drive.google.com/file/d/1Zwxwr01n93BPDxTOXMdgx0ittrsHs3V5/preview'
+};
+
+const orgNames = ['FemTechxperts', 'DP - Doradcy Przyszłości', 'Balkan Tradition', 'Diverse Drive', 'AGRO-COOP', 'Blixer Maven'];
+
+const gameData = {
+        'intro_1': {
+        text: [
+            {className: 'ascii-intro', ascii: `
+                                                                      ░██
+
+      ░████████  ░██████ ░██░████░██░████░██████  ░███████ ░██    ░██ ░██░████████ ░██    ░██
+      ░██    ░██      ░██░███    ░███         ░██░██    ░██░██    ░██ ░██░██    ░██░██    ░██
+      ░██    ░██ ░███████░██     ░██     ░███████░██       ░██    ░██ ░██░██    ░██░██    ░██
+      ░██    ░██░██   ░██░██     ░██    ░██   ░██░██    ░██░██    ░██ ░██░██    ░██░██    ░██
+      ░██    ░██░█████░██░██     ░██    ░█████░██ ░███████  ░█████░██ ░██░██    ░██ ░█████░██
+                                                                  ░██ ░██                 ░██
+   ░████                                             ░██     ░███████░███           ░███████
+  ░██                                                ░██
+ ░██████ ░███████  ░██░████░█████████████ ░██    ░██ ░██ ░██████ ░██░████░█████████
+  ░██   ░██    ░██ ░███    ░██   ░██   ░██░██    ░██ ░██      ░██░███         ░███
+  ░██   ░██    ░██ ░██     ░██   ░██   ░██░██    ░██ ░██ ░███████░██        ░███
+  ░██   ░██    ░██ ░██     ░██   ░██   ░██░██   ░███ ░██░██   ░██░██      ░███
+  ░██    ░███████  ░██     ░██   ░██   ░██ ░█████░██ ░██░█████░██░██     ░█████████
+░██                       ░██
+░██                       ░██
+░████████  ░██████  ░████████ ░██████ ░██    ░██   ░██ ░███████░█████████░██    ░██
+░██    ░██      ░██░██    ░██      ░██░██    ░██   ░██░██    ░██    ░███ ░██    ░██
+░██    ░██ ░███████░██    ░██ ░███████ ░██  ░████ ░██ ░██         ░███   ░██    ░██
+░██    ░██░██   ░██░██    ░██░██   ░██ ░██░██ ░██░██  ░██    ░██░███     ░██    ░██
+░██░█████ ░█████░██░█████░███░█████░██   ░███   ░███   ░███████░████████ ░██████░██
+                                                                                ░██
+                                                                          ░███████
+`.replace(/^\n/, '')},
+            "Przed Tobą formularz badawczy do pracy akademickiej. Ma on formę narracyjną, i to Ty jesteś bohaterem czekającej Cię opowieści.",
+            "",
+            "Jak masz na imię?"
+        ],
+        type: 'input_name',
+        varName: 'userName',
+        next: 'intro_gender',
+        introAnimation: true // Hook for animation
+    },
+    'intro_gender': {
+        text: [
+            state => "Cześć " + state.data.userName + "!",
+            "Jak postacie powinny się do Ciebie zwracać?",
+            "//proszę pana (1) lub proszę pani (2)"
+        ],
+        type: 'input_gender',
+        varName: 'userGender',
+        next: 'intro_2'
+    },
+    'intro_2': {
+        text: ["Ile masz lat?"],
+        type: 'input_age',
+        varName: 'userAge',
+        next: 'intro_3'
+    },
+    'intro_3': {
+        text: [
+            "Dziękujemy.",
+            "",
+            "Badanie polega na wpisywaniu komend w terminalu w odpowiedzi na wydarzenia i wypowiedzi z prezentowanej historii. Treść komend formułujesz Ty. Uwaga – pula komend, które „rozumie\" formularz, daleka jest od nieskończonej – proszę o wyrozumiałość względem ogólnej liniowości historii. Ograniczenie to wynika z ogromnej liczby rozgałęzień, które tworzy możliwość podejmowania kolejnych decyzji. Dla przykładu, jeśli badany mógłby kolejno wybierać spośród 2 możliwości, następnie 2, 4, 4, 6 i 6, możliwych ścieżek przejścia musiałoby już być ponad 2000. Odwijanie tekstu możesz przewinąć klawiszem ENTER/RETURN.",
+            "",
+            "// Naciśnij ENTER"
+        ],
+        type: 'input',
+        next: 'intro_4'
+    },
+    'intro_4': {
+        text: [
+            "Badanie analizuje korelacje między wiekiem, płcią i rodzajem mediów, na których badani skuteczniej potrafią skupić swoją uwagę.",
+            "",
+            "Formularz weryfikuje tę korelację na podstawie odpowiedzi na zawarte w nim pytania. Dotyczą one szczegółów zawartych w każdej z form. Należą do nich: interaktywna gra tekstowa oraz film. Z tego powodu proszę o szczególnie uważne czytanie i oglądanie.",
+            "",
+            "// Naciśnij ENTER aby rozpocząć"
+        ],
+        type: 'input',
+        next: 'start_simulation'
+    },
+    'start_simulation': {
+        text: ["Ładowanie modułu narracyjnego...", "...", "System online."],
+        type: 'narrative',
+        next: 'park',
+        autoDelay: 1500
+    },
+    'park': {
+        text: [
+            state => "Godzina 16, siedzisz na ławce w parku po pracy. Chłoniesz spokój szumiących drzew, falujących gałęzi, delikatnie zmarszczonej tafli stawu. Pierwszy raz w tym roku " + (state.data.userGender === 'pan' ? 'wyszedłeś' : 'wyszłaś') + " z domu bez kurtki, ciepły wiosenny wiatr owiewa Twoje odsłonięte ciało. Dookoła nie ma żywej duszy, jedynie ćwierkające ptaszki dotrzymują Ci towarzystwa. Z plecaka wyciągasz przekąskę, na którą " + (state.data.userGender === 'pan' ? 'cieszyłeś' : 'cieszyłaś') + " się od rana. Życie potrafi być jednak całkiem przyjemne.",
+            "",
+            "Nagle szybkim krokiem przemyka przed Tobą młody mężczyzna w garniturze. Nerwowo obrzuca spojrzeniem okolicę. Zauważasz, że zza jego kołnierza wystaje kręcony kabel prowadzący do słuchawki za uchem. Mężczyzna naciska na nią.",
+            "",
+            {dialogue: true, speaker: "Mężczyzna", text: "Nie ma go szefie."},
+            "",
+            "Mężczyzna słucha w skupieniu.",
+            "",
+            {dialogue: true, speaker: "Mężczyzna", text: state => "Nie... tylko " + (state.data.userGender === 'pan' ? "ten gosc" : "ta kobieta") + "."},
+            "",
+            "Mężczyzna zastyga na długą chwilę. Prawie nie mruga.",
+            "",
+            {dialogue: true, speaker: "Mężczyzna", text: "Jak szef uważa."},
+            "",
+            "Mężczyzna podchodzi do Ciebie:",
+            "",
+            {dialogue: true, speaker: "Mężczyzna", text: state => "Dzien dobry. Jestem asystentem zarządu dużej polskiej firmy. Mamy do podjęcia ważną i niecodzienną decyzję. Jej skutki będą finalnie dotyczyć kilku procent PKB. Mój przełożony zdecydował, by wprowadzić do niej element przypadkowy - osobę z zewnątrz. Pomoże nam " + state.data.userGender + "? Zajmie to najwyżej kilka godzin."},
+            "",
+            "Nim zdążysz odpowiedzieć, mężczyzna wskazuje na zaparkowaną nieopodal czarną limuzynę. Tylna szyba jest opuszczona, widzisz jak siwowłosy mężczyzna unosi dłoń.",
+            "",
+            {dialogue: true, speaker: "Mężczyzna", text: "Wszystko wyjaśni w samochodzie."},
+            "",
+            "Zgadzasz się?"
+        ],
+        type: 'choice',
+        keywords: {
+            'tak': 'limuzyna_1', 'zgod': 'limuzyna_1', 'zgadzam': 'limuzyna_1',
+            'wsiad': 'limuzyna_1', 'idz': 'limuzyna_1',
+            'w porzadku': 'limuzyna_1', 'ok': 'limuzyna_1',
+            'nie': 'park_nie',
+            'y': 'limuzyna_1', 'n': 'park_nie'
+        }
+    },
+    'park_nie': {
+        text: [
+            "Twoja szansa na pokierowanie istotną operacją finansową bezpowrotnie przepadała. Młody mężczyzna odchodzi, limuzyna odjeżdża. Zaczyna robić się zimno, wiatr porywa Ci czapkę i czujesz na głowie wielkie krople deszczu. Bezskutecznie uciekasz przed ulewą. Nazajutrz dostajesz anginy.",
+            "",
+            "Czy chcesz spróbować jeszcze raz?",
+            "",
+            "// Wpisz: TAK lub NIE"
+        ],
+        type: 'retry_choice',
+        keywords: { 'tak': 'park', 'nie': 'ending_early' }
+    },
+    'limuzyna_1': {
+        text: [
+            state => "Jedziesz obok Siwowłosego, zatapiając się w najwygodniejszym fotelu, w jakim kiedykolwiek " + (state.data.userGender === 'pan' ? 'siedziałeś' : 'siedziałaś') + ".",
+            "",
+            {dialogue: true, speaker: "Siwowłosy", text: "Jestem zastępcą i prawą ręką jednego z najbogatszych Polaków. Mieliśmy dziś sfinalizować operację, nad którą pracowaliśmy od dwóch lat. Szef nie pojawił się dziś w biurze. Nie ma go w domu. Nie odbiera telefonów. Podejrzewaliśmy że tak zrobi - od pewnego czasu przeczuwaliśmy, że nie chce dokonać ostatecznego wyboru. Szukamy go jednak, od rana przetrząsamy jego ulubione zakątki w mieście. Ani śladu. Jeśli Szef chce się ukryć, nikt go nie znajdzie, nawet my. Nie możemy jednak dłużej czekać."},
+            "",
+            "Jego oczy o kolorze stali ze spokojem wwiercają się w Twoje. Kiedy czujesz jak dotyka nimi tylnej ściany Twojej czaszki zaczynasz podejrzewać, że wie już co o całej sprawie myślisz. Strząsasz z siebie te myśli, przywołujesz na twarz spokój. Zapewniasz krótko, że rozumiesz co mówi. Siwowłosy kontynuuje:",
+            "",
+            {dialogue: true, speaker: "Siwowłosy", text: state => "Ja również nie chcę ponosić tej odpowiedzialności. Potrzebujemy kogoś o świeżym spojrzeniu i... stąd " + (state.data.userGender === 'pan' ? 'pana' : 'pani') + " obecność. Pewnie zastanawia się " + state.data.userGender + " czego cała ta sprawa dotyczy. Już wyjaśniam. Szef umiera, lekarze dają mu miesiąc. Pomimo ogromnego sukcesu nigdy nie kierował się w swojej pracy względami ekonomicznymi. Zawsze miał na uwadze wizję tego, jaki świat kształtować będą jego decyzje - nie chciał go psuć. Kiedy dwa lata temu usłyszał diagnozę, postanowił w ramach swoich możliwości skierować koła historii w słuszną stronę."},
+            "",
+            "Siwowłosy zatrzymuje się na chwilę, sprawdza czy nadążasz.",
+            "",
+            "Nadążasz?"
+        ],
+        type: 'choice',
+        keywords: {
+            'nie': 'limuzyna_nie_nadazam', 'nie nadazam': 'limuzyna_nie_nadazam', 'n': 'limuzyna_nie_nadazam',
+            'tak': 'limuzyna_2', 'nadaz': 'limuzyna_2', 'nadazam': 'limuzyna_2', 'jasne': 'limuzyna_2', 'nadążam': 'limuzyna_2',
+            'w porzadku': 'limuzyna_2', 'y': 'limuzyna_2'
+        }
+    },
+    'limuzyna_nie_nadazam': {
+        text: ["To przeczytaj jeszcze raz :)", "Nadążyłeś?"],
+        type: 'choice',
+        keywords: {
+            'tak': 'limuzyna_2', 'nadaz': 'limuzyna_2',
+            'nadazam': 'limuzyna_2', 'jasne': 'limuzyna_2',
+            'y': 'limuzyna_2'
+        }
+    },
+    'limuzyna_2': {
+        text: [
+            "Siwowłosy kontynuuje.",
+            "",
+            {dialogue: true, speaker: "Siwowłosy", text: "W kwestii tej pojawił się jednak problem - Szef stanął oko w oko z pewnym dylematem. Zapewne z jego powodu zniknął w finalnym etapie naszej operacji. Mianowicie - ktoś bardzo żywo zarzucił mu, że świat, który chce on tworzyć, nie jest światem, którego chce większość ludzi."},
+            "",
+            "Siwowłosy znów wwierca się w Ciebie, sonduje czy dociera do Ciebie waga całej sprawy.",
+            "",
+            {dialogue: true, speaker: "Siwowłosy", text: "Szef poczuł wtedy, że nie ma prawa kierować historii w sposób, który sam uznaje za słuszny. Plan zakładał przekazanie części jego majątku, kilkuset milionów złotych, skrupulatnie wyselekcjonowanej i dokładnie prześwietlonej organizacji. W obliczu wspomnianego zarzutu, Szef stracił wiarę w zasadność swoich wyborów. Prawdę mówiąc, również moje przekonania zostały zachwiane. Wychodzimy jednak z założenia, że więcej złego dzieje się wtedy, gdy nie podejmuje się ryzyka. Dlatego mimo wszystko chcemy wesprzeć jedną z organizacji. Z tego powodu do wybranej przez nas instytucji dodaliśmy kilka innych, aby umożliwić kształtowanie rzeczywistości w rozmaitych kierunkach."},
+            "",
+            "Zaczynasz rozumieć o co chodzi. Twoje przypuszczenia potwierdza Siwowłosy.",
+            "",
+            {dialogue: true, speaker: "Siwowłosy", text: state => "Właśnie tutaj pojawia się " + state.data.userGender + ": chcę, aby to " + state.data.userGender + ", jako absolutnie przypadkowa osoba, dokonała wyboru. Dostęp do informacji, które uznaliśmy za niezbędne, otrzyma " + state.data.userGender + " na miejscu. Możemy na " + (state.data.userGender === 'pan' ? 'pana' : 'panią') + " liczyć?"},
+            "",
+            "Zgadzasz się?"
+        ],
+        type: 'choice',
+        keywords: {
+            'tak': 'biuro', 'zgod': 'biuro', 'zgadzam': 'biuro',
+            'w porzadku': 'biuro', 'jasne': 'biuro',
+            'nie': 'limuzyna_nie_zgoda',
+            'y': 'biuro', 'n': 'limuzyna_nie_zgoda'
+        }
+    },
+    'limuzyna_nie_zgoda': {
+        text: [
+            "Twoja szansa na pokierowanie istotną operacją finansową bezpowrotnie przepadała. Siwowłosy wysadza Cię zgodnie z Twoim życzeniem przy stacji metra. Gęsta siatka wielkich kropli deszczu przenika Twoją kurtkę nim zdążysz zniknąć pod ziemią. Na dole okazuje się, że wskutek awarii cała linia jest zatrzymana. Wspinasz się na górę (schody także nie działają). Ruch w mieście jest koszmarnie zakorkowany. Nie możesz złapać taksówki ani dopchać się do drzwi autobusów. Wracasz na piechotę, okrutnie przemakasz. Nazajutrz dostajesz anginy.",
+            "",
+            "Czy chcesz spróbować jeszcze raz?",
+            "",
+            "// Wpisz: TAK lub NIE"
+        ],
+        type: 'retry_choice',
+        keywords: { 'tak': 'park', 'nie': 'ending_early' }
+    },
+    'biuro': {
+        text: [
+            state => "Z garażu podziemnego wjeżdżacie niewielką windą prosto do urządzonego w stylu mid-century gabinetu. Zza przeszklonej ściany rozpościera się widok na miejską panoramę. Nie " + (state.data.userGender === 'pan' ? 'widziałeś' : 'widziałaś') + " jeszcze miasta z tej perspektywy. Dźwięk zamykanej windy przypomina Ci, że nie jesteś " + (state.data.userGender === 'pan' ? 'sam' : 'sama') + " w pokoju. Odwracasz się. Siwowłosy uśmiecha się do Ciebie przyjaźnie i wskazuje na stół, na którym leżą jakieś dokumenty.",
+            "",
+            {dialogue: true, speaker: "Siwowłosy", text: state => "Kiedy zapozna się " + (state.data.userGender === 'pan' ? 'pan' : 'pani') + " z materiałami proszę do mnie podejść, będę czekał w pokoju obok."},
+            "",
+            "Siwowłosy znika za drzwiami. Rozglądasz się po imponującym gabinecie: kafle, dywany, meble, boazerie: wszystko to gra ze sobą w odczuwalnej harmonii: jeśli zabrać by, lub wymienić któryś z elementów, pomieszczenie utraciłoby ulotną, ale przeszywającą aurę kompletności. Kiedy tak kręcisz się i rozglądasz po gabinecie, zegar ścienny wybija równą godzinę, co przypomina Ci o Twoim zadaniu. Doskakujesz do stołu i rozłożonych dokumentów. Wszystkie one opisują wyselekcjonowane organizacje oraz ich przywódców.",
+            "",
+            "// Aby przejść dalej w plus-minus 20 słowach opisz, jak wyobrażasz sobie idealnego kandydata - instytucję godną dotacji w wysokości 500 milionów złotych."
+        ],
+        type: 'survey_input',
+        timer: 60,
+        next: 'org_intro'
+    },
+    'org_intro': {
+        text: [
+            "Informacje zawarte w obszernej dokumentacji sprowadzają się do poniższego podsumowania:",
+            "// Poświęć chwilę na zapoznanie się z nimi, w końcu chodzi o kilkaset milionów złotych.",
+            "",
+            "// Naciśnij ENTER"
+        ],
+        type: 'input',
+        next: 'org_1'
+    },
+    'org_1': {
+        text: [
+            {className: 'ascii-femtech', ascii: "\n▄▖     ▄▖    ▌         ▗\n▙▖█▌▛▛▌▐ █▌▛▘▛▌▚▘▛▌█▌▛▘▜▘▛▘\n▌ ▙▖▌▌▌▐ ▙▖▙▖▌▌▞▖▙▌▙▖▌ ▐▖▄▌\n                 ▌\n"},
+            "1. FemTechxperts", "", "Jest to start-up technologiczny, którego udziały podzielone są pomiędzy założycielkę oraz a16z i Sequoia'ę. Ze zdjęcia, a właściwie okładki załączonego Forbesa 30under30 uśmiecha się kobieta z zadartą pod niebiosa głową:",
+            "",
+            "„Jest to już moje kolejne udane przedsięwzięcie. Choć mam już dwie firmy programistyczne i sieć kawiarni, nadal chcę się rozwijać. Półtorej roku temu, wskutek rozmowy z przyjaciółką, przypomniałam sobie moje lata w Meta. Pracując tam jako PM byłam ofiarą seksistowskiego traktowania. Na nowo poczułam ciężar męskiej dominacji sektora IT. Nie tylko zresztą ja: każda kobieta o technicznym zacięciu, z którą rozmawiałam, czuła się w pracy jak na świeczniku – jesteśmy surowiej oceniane, pracujemy ciężej, a jednak zarabiamy mniej. Postanowiłam wziąć sprawę we własne ręce.\"",
+            "",
+            "Zarząd FemTechxperts składa się wyłącznie z kobiet, którym założycielka obiecała udziały w zyskach wynikających z planowanej sprzedaży organizacji do Google lub Microsoft. Choć dziewczyny przeprowadzają też okazjonalnie rekrutację mężczyzn, w przeważającej mierze pomagają utrzymać gigantom technologicznym co najmniej równy parytet kadr.",
+            "",
+            "Start-up zajmuje się także wsparciem młodych kobiet wywodzących się ze środowisk o ograniczonych możliwościach – prowadzi platformę internetową, która rozwija i inkubuje wizjonerskie pomysły oraz pomaga je efektywnie wdrażać.",
+            "",
+            "// Wciśnij ENTER aby przejść do kolejnego kandydata"
+        ],
+        type: 'input',
+        next: 'org_2'
+    },
+    'org_2': {
+        text: [
+            {ascii: "\nDDDDDDDDDDDDD      PPPPPPPPPPPPPPPPP\nD::::::::::::DDD   P::::::::::::::::P\nD:::::::::::::::DD P::::::PPPPPP:::::P\nDDD:::::DDDDD:::::DPP:::::P     P:::::P\n  D:::::D    D:::::D P::::P     P:::::P\n  D:::::D     D:::::DP::::P     P:::::P\n  D:::::D     D:::::DP::::PPPPPP:::::P\n  D:::::D     D:::::DP:::::::::::::PP\n  D:::::D     D:::::DP::::PPPPPPPPP\n  D:::::D     D:::::DP::::P\n  D:::::D     D:::::DP::::P\n  D:::::D    D:::::D P::::P\nDDD:::::DDDDD:::::DPP::::::PP\nD:::::::::::::::DD P::::::::P\nD::::::::::::DDD   P::::::::P\nDDDDDDDDDDDDD      PPPPPPPPPP\n                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 y:::::y                                                                                y:::::y\n"},
+            "2. DP - Doradcy Przyszłości",
+            "",
+            "Consulting, specjalizuje się w optymalizacji operacyjnej. Spółka o wielkich ambicjach, chce w najbliższym roku wejść do STOXX 600, indeksu 600 najwyżej notowanych spółek publicznych Europy, w czym ma pomóc jej dotacja, przeznaczona na ekspansję na rynki USA i Europy Zachodniej.",
+            "",
+            "„Zajmujemy się wprowadzaniem nowatorskich metod zarządzania kadrą. Pomagają one naszym klientom przyciągać i utrzymywać najbardziej utalentowanych pracowników, oraz filtrować tych, którzy lepsze dopasowanie mogą znaleźć w miejscach, gdzie rozwój i ambicja nie pełnią pierwszoplanowej roli. Już w tej dziedzinie mamy mnóstwo sukcesów. Zajmujemy się także z powodzeniem adaptacją automatyzacji oraz doradztwem w zakresie struktur zatrudnienia korzystnych dla firm i dla najlepszych specjalistów.\"",
+            "",
+            "Ze zdjęcia uśmiecha się do Ciebie czarnoskóry mężczyzna. Krótko i elegancko przystrzyżony, w uchu ma kolczyk z diamentem. Nosi garnitur w delikatne prążki i krawat w ekstrawagancki wzór, który prowadzi uwagę do oczu o tym samym kolorze. Bije z nich mądrość i otwartość, a także drapieżność. Jego nadgarstek otacza klasyczny szwajcarski zegarek, mężczyzna opiera się o maskę pięknego oldtimera. Jest w facecie coś, co budzi zaufanie.",
+            "",
+            "// Wciśnij ENTER aby przejść do kolejnego kandydata"
+        ],
+        type: 'input',
+        next: 'org_3'
+    },
+    'org_3': {
+        text: [
+            {className: 'ascii-tiny', ascii: "\n,-----.          ,--.,--.                       ,--------.                  ,--.,--.  ,--.  ,--.\n|  |) /_  ,--,--.|  ||  |,-. ,--,--.,--,--,     '--.  .--',--.--. ,--,--. ,-|  |`--',-'  '-.`--' ,---. ,--,--,\n|  .-.  \\' ,-.  ||  ||     /' ,-.  ||      \\       |  |   |  .--'' ,-.  |' .-. |,--.'-.  .-',--.| .-. ||      \\\n|  '--' /\\ '-'  ||  ||  \\  \\\\ '-'  ||  ||  |       |  |   |  |   \\ '-'  |\\ `-' ||  |  |  |  |  |' '-' '|  ||  |\n`------'  `--`--'`--'`--'`--'`--`--'`--''--'       `--'   `--'    `--`--' `---' `--'  `--'  `--' `---' `--''--'\n"},
+            "3. Balkan Tradition",
+            "",
+            "Bałkański potentat z siedzibą w polskiej stolicy. Zajmuje się eksportem i importem pomiędzy Bliskim Wschodem a Europą Zachodnią.",
+            "",
+            "Na zdjęciu widzimy grupę ludzi. Przypomina ono fotografię dworu w sali tronowej, z parą w średnim wieku w centrum. Wyraźnie widać powinowactwo - firma, pomimo potężnego zasięgu i ogromnych prognoz IPO zachowała rodzinny charakter. Stanowczo odmawia wejścia na giełdę i ogromnie ceni niezależność. Z tego powodu zastrzyk gotówki w postaci bezzwrotnej dotacji jest dla niej szczególnie atrakcyjny - pomoże jej wejść na rynki skandynawskie. Na twarzach ludzi maluje się zacięcie, oddanie. Fragment wywiadu z jednym z młodszych synów:",
+            "",
+            "\"Skąd sukces? To proste. Ojciec od najmłodszych lat przekazywał nam to, co przekazywał mu jego ojciec, a jemu dziadek.\" Przerywa mu siostra: \"Nieprawda! To mówiła nam babcia i mama!\" Brat uśmiecha się \"Masz rację, wszyscy nam to mówili. Chodzi o wspólnotę. Żaden i żadna z nas nie uważa się za ważniejszego od dobra rodziny. Klanowi podporządkowujemy nasz czas, wysiłek, całe nasze życie...\" tutaj ponownie przerywa siostra, dodając \"I sumienie.\" Brat ponownie się uśmiecha \"To nie tak kochana. Nasze sumienie rozlicza nas z działań wobec i przeciwko rodzinie. Bo i co w tym złego? Każda rodzina dba o swoje interesy. Od większości rodzin różni nas tylko skuteczność, wzajemny szacunek i jasna wizja tego, co zamierzamy zrobić.\"",
+            "",
+            "// Wciśnij ENTER aby przejść do kolejnego kandydata"
+        ],
+        type: 'input',
+        next: 'org_4'
+    },
+    'org_4': {
+        text: [
+            {className: 'ascii-tiny', ascii: "\n________  ._______   _________________________  ____________________ ________ __________._______   _______________\n\\______ \\ |   \\   \\ /   /\\_   _____/\\______   \\/   _____/\\_   _____/ \\______ \\\\______   \\   \\   \\ /   /\\_   _____/\n |    |  \\|   |\\   Y   /  |    __)_  |       _/\\_____  \\  |    __)_   |    |  \\|       _/   |\\   Y   /  |    __)_\n |    `   \\   | \\     /   |        \\ |    |   \\/        \\ |        \\  |    `   \\    |   \\   | \\     /   |        \\\n/_______  /___|  \\___/   /_______  / |____|_  /_______  //_______  / /_______  /____|_  /___|  \\___/   /_______  /\n        \\/                       \\/         \\/        \\/         \\/          \\/       \\/                       \\/\n"},
+            "4. Diverse Drive",
+            "",
+            "Operuje jako fundacja. Jest czempionem dotacji ministerialnych i unijnych. Aktualnie skupia się na uniezależnieniu od zewnętrznego finansowania - zastrzyk gotówki ma pomóc jej w tranzycji, utrudnionej przez kosztowne plany produkcji audiowizualnej. Hierarchia jest płaska, wynagrodzenia równe. Instytucja znana jest z licznych calling-outów, z którego to powodu ma trudności w utrzymaniu stałych partnerów biznesowych.",
+            "",
+            "Zdjęcie przywódczyni: Patrzy spod byka, ale się uśmiecha. Ubrana jest w t-shirt za duży o kilka numerów i w kurtkę z demobilu, z wyhaftowaną wielką pacyfką. Głowę ma zgoloną niemal na zero. Jedną dłoń zaciska w pięść, w drugiej ściska na wpół zamknięty laptop, obklejony wlepami związków zawodowych, organizacji socjalistycznych i aktywistycznych.",
+            "",
+            "„Nie mogłam już dłużej podtapiać się w morzu patriarchatu, kapitalizmu i bigoterii. Odeszłam więc z korpo i założyłam fundację. Robimy branding dla spółek i start-upów. Zebrałam ludzi zdyscyplinowanych, posłusznych, oddanych idei - każda, każde i każdy z nas rozumie wagę tego, o co walczymy. Rygorystycznie dobieramy sobie partnerów do współpracy. Jeśli już się z kimś zwiążemy, pilnujemy, aby przestrzegali oni równości i sprawiedliwości. Dotacji potrzebujemy, aby zrealizować autorski, internetowy serial, promujący prawdziwie inkluzywne postawy. Nasza walka jest ważna. Jeśli to rozumiesz - świetnie. Jeśli nie chcesz być z nami - jesteś przeciwko nam.",
+            "",
+            "// Wciśnij ENTER aby przejść do kolejnego kandydata"
+        ],
+        type: 'input',
+        next: 'org_5'
+    },
+    'org_5': {
+        text: [
+            {className: 'ascii-tiny', ascii: "\n_____/\\\\\\\\\\\\\\\\\\________/\\\\\\\\\\\\\\\\\\\\\\\\____/\\\\\\\\\\\\\\\\\\___________/\\\\\\\\\\___________________________/\\\\\\\\\\\\\\\\\\_______/\\\\\\\\\\____________/\\\\\\\\\\_______/\\\\\\\\\\\\\\\\\\\\\\\\\\___\n ___/\\\\\\\\\\\\\\\\\\\\\\\\\\____/\\\\\\//////////___/\\\\\\///////\\\\\\_______/\\\\\\///\\\\\\______________________/\\\\\\////////______/\\\\\\///\\\\\\________/\\\\\\///\\\\\\____\\/\\\\\\/////////\\\\\\_\n  __/\\\\\\/////////\\\\\\__/\\\\\\_____________\\/\\\\\\_____\\/\\\\\\_____/\\\\\\/__\\///\\\\\\__________________/\\\\\\/_____________/\\\\\\/__\\///\\\\\\____/\\\\\\/__\\///\\\\\\__\\/\\\\\\_______\\/\\\\\\_\n   _\\/\\\\\\_______\\/\\\\\\_\\/\\\\\\____/\\\\\\\\\\\\\\_\\/\\\\\\\\\\\\\\\\\\\\\\/_____/\\\\\\______\\//\\\\\\__/\\\\\\\\\\\\\\\\\\\\\\__/\\\\\\______________/\\\\\\______\\//\\\\\\__/\\\\\\______\\//\\\\\\_\\/\\\\\\\\\\\\\\\\\\\\\\\\\\/__\n    _\\/\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\_\\/\\\\\\___\\/////\\\\\\_\\/\\\\\\//////\\\\\\____\\/\\\\\\_______\\/\\\\\\_\\///////////__\\/\\\\\\_____________\\/\\\\\\_______\\/\\\\\\_\\/\\\\\\_______\\/\\\\\\_\\/\\\\\\/////////____\n     _\\/\\\\\\/////////\\\\\\_\\/\\\\\\_______\\/\\\\\\_\\/\\\\\\____\\//\\\\\\___\\//\\\\\\______/\\\\\\________________\\//\\\\\\____________\\//\\\\\\______/\\\\\\__\\//\\\\\\______/\\\\\\__\\/\\\\\\_____________\n      _\\/\\\\\\_______\\/\\\\\\_\\/\\\\\\_______\\/\\\\\\_\\/\\\\\\_____\\//\\\\\\___\\///\\\\\\__/\\\\\\___________________\\///\\\\\\___________\\///\\\\\\__/\\\\\\_____\\///\\\\\\__/\\\\\\____\\/\\\\\\_____________\n       _\\/\\\\\\_______\\/\\\\\\_\\/\\\\\\_______\\/\\\\\\_\\/\\\\\\______\\//\\\\\\____\\///\\\\\\\\\\/______________________\\////\\\\\\\\\\\\\\\\\\____\\///\\\\\\\\\\/________\\///\\\\\\\\\\/_____\\/\\\\\\_____________\n        _\\///________\\///___\\////////////____\\///________\\///_______\\/////___________________________\\/////////_______\\/////____________\\/////_______\\///______________\n"},
+            "5. AGRO-COOP",
+            "",
+            "Kilkanaście lat temu, gdzieś na polach Podlasia, w pobliżu jednego z największych jezior województwa, zawiązała się niezwykłą wspólnota. Grupa dobiegających emerytury specjalistów - prawników, lekarzy, architektów, managerów wysokiego stopnia oraz ich młodszych, jednak równie majętnych kolegów, postanowiła porzucić dotychczasowe życie, zabrać rodziny, i zawiązać samowystarczalną społeczność opartą na agrokulturze. Sprawy tak się potoczyły, że do komuny dołączyli rolnicy, od których przybysze z miast kupili ziemię. Dziś stanowią oni blisko 50% społeczności.",
+            "",
+            "Wprowadzono zasady, których skrupulatnie się przestrzega: całość jest kooperatywą, panuje rotacyjne przywództwo, obowiązuje cykliczna służba na robotniczych i rzemieślniczych stanowiskach. Panuje zasada ograniczania kontaktów poza społecznością oraz... zakaz informowania postronnych o istnieniu wspólnoty. Liderom zależy, by nie stała się ona atrakcją medialną i turystyczną. Przez pierwszą dekadę organizacja doskonaliła swój koślawy system, aż doszła do momentu, w którym notowany jest niewielki, ale konsekwentny wzrost produkcji oraz równo dzielonych zysków ze sprzedaży jej nadmiaru.",
+            "",
+            "Ludzie Siwowłosego przeprowadzili na miejscu audyt, i ku ich zdziwieniu, całość rzeczywiście istnieje i ma sens ekonomiczny. Zdjęcie grupowe przedstawia około 30 osób, wszyscy założyli maski. Po co im dotacja? Kooperatywa chce wykupić inne lokalne przedsiębiorstwa, aby oddać je w ręce uprzednio wyszkolonych pracowników-właścicieli. Obecny lider mówi:",
+            "",
+            "Mamy tu coś bardzo cennego, chcemy więc pomóc lokalnym przyjaciołom działać w podobny sposób. Nie mamy radia, telewizji i internetu, telefonu użycza nam oddalony o 15 km sąsiad. Nikt o nas nie wie, i tylko dzięki temu możemy tworzyć tak unikalną wspólnotę. Wymaga to poświęceń – wszyscy rezygnujemy z wygód, kontaktów i nowoczesnych technologii, ale członkowie społeczności chętnie dopasowują się do panujących zasad.",
+            "",
+            "// Wciśnij ENTER aby przejść do kolejnego kandydata"
+        ],
+        type: 'input',
+        next: 'org_6'
+    },
+    'org_6': {
+        text: [
+            {className: 'ascii-tiny', ascii: "\n           _               _              _     _      _              _            _              _   _         _      _          _       _            _\n          / /\\            _\\ \\           /\\ \\ /_/\\    /\\ \\           /\\ \\         /\\ \\           /\\_\\/\\_\\ _    / /\\   /\\ \\    _ / /\\     /\\ \\         /\\ \\     _\n         / /  \\          /\\__ \\          \\ \\ \\\\ \\ \\   \\ \\_\\         /  \\ \\       /  \\ \\         / / / / //\\_\\ / /  \\  \\ \\ \\  /_/ / /    /  \\ \\       /  \\ \\   /\\_\\\n        / / /\\ \\        / /_ \\_\\         /\\ \\_\\\\ \\ \\__/ / /        / /\\ \\ \\     / /\\ \\ \\       /\\ \\/ \\ \\/ / // / /\\ \\  \\ \\ \\ \\___\\/    / /\\ \\ \\     / /\\ \\ \\_/ / /\n       / / /\\ \\ \\      / / /\\/_/        / /\\/_/ \\ \\__ \\/_/        / / /\\ \\_\\   / / /\\ \\_\\     /  \\____\\__/ // / /\\ \\ \\ / / /  \\ \\ \\   / / /\\ \\_\\   / / /\\ \\___/ /\n      / / /\\ \\_\\ \\    / / /            / / /     \\/_/\\__/\\       / /_/_ \\/_/  / / /_/ / /    / /\\/________// / /  \\ \\ \\\\ \\ \\   \\_\\ \\ / /_/_ \\/_/  / / /  \\/____/\n     / / /\\ \\ \\___\\  / / /            / / /       _/\\/__\\ \\     / /____/\\    / / /__\\/ /    / / /\\/_// / // / /___/ /\\ \\\\ \\ \\  / / // /____/\\    / / /    / / /\n    / / /  \\ \\ \\__/ / / / ____       / / /       / _/_/\\ \\ \\   / /\\____\\/   / / /_____/    / / /    / / // / /_____/ /\\ \\\\ \\ \\/ / // /\\____\\/   / / /    / / /\n   / / /____\\_\\ \\  / /_/_/ ___/\\ ___/ / /__     / / /   \\ \\ \\ / / /______  / / /\\ \\ \\     / / /    / / // /_________/\\ \\ \\\\ \\ \\/ // / /______  / / /    / / /\n  / / /__________\\/_______/\\__\\//\\__\\/_/___\\   / / /    /_/ // / /_______\\/ / /  \\ \\ \\    \\/_/    / / // / /_       __\\ \\_\\\\ \\  // / /_______\\/ / /    / / /\n  \\/_____________/\\_______\\/    \\/_________/   \\/_/     \\_\\/ \\/__________/\\/_/    \\_\\/            \\/_/ \\_\\___\\     /____/_/ \\_\\/ \\/__________/\\/_/     \\/_/\n"},
+            "6. Blixer Maven",
+            "",
+            "To organizacja skupiona wokół człowieka-instytucji: charyzmatycznego lidera, medium, reformatora struktur społecznych i czarodzieja od programowania w jednej osobie. Zasłynął kontrowersyjnymi tezami, jakoby jego techniki zarządzania miały stwarzać jedyne naturalne i sprawiedliwe struktury hierarchiczne, odpowiednie dla „nieśmiertelnego ducha w każdym z nas\". Świat biznesu przygląda mu się jednak z uwagą - człowiek ten w wieku 14 lat stworzył i sprzedał jeden z najpopularniejszych serwisów internetowych na świecie.",
+            "",
+            "Na czym opiera się działalność instytucji? Tworzą oni narzędzia open-source dla edukacji. Jak mówi założyciel: \"Wiedza to dobro wspólne, nie własność. Opieramy się na prawdzie i duchu. Nie będziemy narzędziem korporacji. Wyniesiemy ludzkość na optymalny poziom rozwoju duchowego.\"",
+            "",
+            "Po co dotacja? Założyciel rozdał organizacjom charytatywnym 95% sumy ze wspomnianej sprzedaży. Dziś chce wprowadzić swój model zarządzania i rozliczania za usługi do strefy poza cyfrowej, w trzech eksperymentalnie zorganizowanych przedsiębiorstwach. Z tego powodu ma trudności w znalezieniu klasycznych inwestorów – spółki kapitałowe, VC i dotacje państwowe wycofują się z działań, których celem nie jest skalowanie i maksymalizacja zysku.",
+            "",
+            "***",
+            "",
+            "// Kiedy będziesz gotowy naciśnij ENTER"
+        ],
+        type: 'input',
+        next: 'knock_door'
+    },
+    'knock_door': {
+        text: [
+            "Pukasz w uchylone skrzydło podwójnych drzwi. Gdy tylko dotykasz dębowego drewna Siwowłosy zaprasza Cię do środka.",
+            "",
+            {dialogue: true, speaker: "Siwowłosy", text: state => "Mam nadzieję, że " + (state.data.userGender === 'pan' ? "uporał się pan" : "uporała się pani") + " z natłokiem informacji. Jak " + (state.data.userGender === 'pan' ? "pan sądzi" : "pani sądzi") + ", której z instytucji należy się dotacja?"},
+            "",
+            "// Podaj numer instytucji, która zasługuje na dotację"
+        ],
+        type: 'data_collection_1_choice',
+        next: 'data_collection_1_certainty'
+    },
+    'data_collection_1_certainty': {
+        text: [
+            "Siwowłosy przygląda Ci się uważnie.",
+            "",
+            {dialogue: true, speaker: "Siwowłosy", text: state => "Wybór ten jest dla " + (state.data.userGender === 'pan' ? "pana oczywisty (1), raczej oczywisty (2) czy może ma pan wątpliwości (3)" : "pani oczywisty (1), raczej oczywisty (2) czy może ma pani wątpliwości (3)") + "?"},
+            "",
+            "// Określ cyfrą stopnień pewności"
+        ],
+        type: 'data_collection_1_certainty_input',
+        next: 'data_collection_1_reservations'
+    },
+    'data_collection_1_reservations': {
+        text: [
+            {dialogue: true, speaker: "Siwowłosy", text: state => "Doskonale. Pozostaje mi tylko zapytać, czy ma " + (state.data.userGender === 'pan' ? "pan" : "pani") + " jakieś zastrzeżenia względem tego, jak powinna być prowadzona działalność organizacji?"},
+            "",
+            "// W jednym-dwóch zdaniach sformułuj swoje zastrzeżenia względem działalności organizacji lub wpisz \"BRAK\", jeśli zastrzeżeń nie masz"
+        ],
+        type: 'data_collection_1_reservations_input',
+        next: 'go_to_cinema'
+    },
+    'go_to_cinema': {
+        text: [
+            {dialogue: true, speaker: "Siwowłosy", text: state => "Dziękuję. Pozwoli " + (state.data.userGender === "pan" ? "pan" : "pani") + " teraz, że omówię " + (state.data.userGender === "pan" ? "pana" : "pani") + " wybory z zarządem. Będę wdzięczny, jeśli " + (state.data.userGender === "pan" ? "pan" : "pani") + " na nas zaczeka. Myślę, że najwygodniej będzie w sali projekcjyjnej. Chętnie " + (state.data.userGender === "pan" ? "pana" : "panią") + " tam zaprowadzę."},
+            "",
+            "***",
+            "",
+            "Siedzisz w fotelu, który swoją wygodą bije na głowę nawet ten z limuzyny. Rozpoczyna się projekcja.",
+            "",
+            "// Aby uruchomić projekcję wciśnij ENTER"
+        ],
+        type: 'input',
+        next: 'show_video'
+    },
+    'show_video': {
+        type: 'video_link',
+        next: 'video_check'
+    },
+    'video_check': {
+        text: [
+            "Projekcja została otwarta w nowej karcie.",
+            "",
+            "// Jeśli obejrzałeś cały fragment filmu wciśnij ENTER"
+        ],
+        type: 'input',
+        next: 'post_video_scene'
+    },
+        'post_video_scene': {
+        text: [
+            "Projekcja dobiega końca, ekran powoli się wyciemnia, aż w pomieszczeniu zapanowuje kompletny mrok. Po chwili nad Twoją głową zapala się lampka, która rzuca ostry snop światła na kilka kartek i długopis, leżących na siedzeniu obok.",
+            "",
+            "// Naciśnij ENTER by podnieść kartki."
+        ],
+        type: 'input',
+        next: 'test_story_1'
+    },
+    'test_story_1': {
+        text: [
+            "// Uwaga: przez następne 3 pytania nie możesz przewijać tekstu. Aby opuścić widok nacisnij ENTER",
+            "",
+            "// Pytanie 1 z 3:",
+            state => "Jaka pora roku panuje, kiedy zaczyna się nasza historia? Jak " + (state.data.userGender === 'pan' ? 'byłeś ubrany' : 'byłaś ubrana') + "?"
+        ],
+        type: 'survey_input',
+        lockScroll: true,
+        next: 'test_story_2'
+    },
+    'test_story_2': {
+        text: [
+            "// Pytanie 2 z 3:",
+            "Jak to się stało, że wybierasz adresata ogromnej dotacji?"
+        ],
+        type: 'survey_input',
+        lockScroll: true,
+        next: 'test_story_3'
+    },
+    'test_story_3': {
+        text: [
+            "// Pytanie 3 z 3:",
+            "Wymień co najmniej 3 nazwy instytucji aplikujących o dotację oraz opisz ich logotypy."
+        ],
+        type: 'survey_input',
+        lockScroll: true,
+        next: 'test_film_intro'
+    },
+    'test_film_intro': {
+        text: [
+            "Dziękuję. Teraz pytania o film.",
+            "",
+            "UWAGA: Na każde pytanie masz 1 MINUTĘ.",
+            "",
+            "// Naciśnij ENTER"
+        ],
+        type: 'input',
+        next: 'test_film_1'
+    },
+    'test_film_1': {
+        text: [
+            "Pytanie 1 z 3 o film:",
+            "",
+            "Określ, na czym opiera się konflikt dramaturgiczny właśnie obejrzanego fragmentu filmu."
+        ],
+        type: 'timed_question',
+        duration: 60,
+        next: 'test_film_2'
+    },
+    'test_film_2': {
+        text: [
+            "Pytanie 2 z 3 o film:",
+            "",
+            "Opisz ubiór co najmniej trzech bohaterów."
+        ],
+        type: 'timed_question',
+        duration: 60,
+        next: 'test_film_3'
+    },
+    'test_film_3': {
+        text: [
+            "Pytanie 3 z 3 o film:",
+            "",
+            "Ile scen odbywało się wewnątrz a ile na zewnątrz?",
+            "// Scenę rozumiemy jako część akcji, która ma miejsce w tym samym czasie i w tej samej przestrzeni"
+        ],
+        type: 'timed_question',
+        duration: 60,
+        next: 'siwowlosy_returns'
+    },
+    'siwowlosy_returns': {
+        text: [
+            "Kiedy tylko odkładasz kartki i długopis na miejsce w korytarzu zapala się światło. Dostrzegasz opartą o framugę sylwetkę Siwowłosego.",
+            "",
+            {dialogue: true, speaker: "Siwowłosy", text: state => "Dziękuję za cierpliwość. Muszę zdradzić, że projekcja nie była przypadkowa - miała za zadanie wystawić na próbę " + (state.data.userGender === 'pan' ? 'pana' : 'pani') + " pierwotną decyzję. Specjalnie dobrana scena zestawia fundamentalne założenia wybranej przez " + (state.data.userGender === 'pan' ? 'pana' : 'panią') + " organizacji z krzywdą, do której mogą one prowadzić. Nie sprawdzamy w ten sposób stabilności " + (state.data.userGender === 'pan' ? 'pana' : 'pani') + " wyborów, staramy się jedynie upewnić, że w " + (state.data.userGender === 'pan' ? 'pana' : 'pani') + " perspektywie uwzględnione są potencjalne niebezpieczeństwa."},
+            "",
+            "Robi pauzę, sprawdza jak znosisz te informacje. Z ulgą odnotowuje Twoje rozumne, spokojne spojrzenie.",
+            "",
+            {dialogue: true, speaker: "Siwowłosy", text: state => "Czy mogę poprosić " + (state.data.userGender === 'pan' ? 'pana' : 'panią') + " do sali konferencyjnej?"},
+            "",
+            "// Naciśnij ENTER aby przejść do sali konferencyjnej"
+        ],
+        type: 'input',
+        next: 'conference_room'
+    },
+    'conference_room': {
+        text: [
+            "Siwowłosy otwiera przed Tobą drzwi. Przy długim, lakierowanym stole z litego drewna siedzi kilka elegancko ubranych mężczyzn i kobiet. Są wyraźnie zmęczeni, ale wstają gdy wchodzisz i uśmiechają się do Ciebie. Za oknami zdążyło zrobić się ciemno.",
+            "",
+            {dialogue: true, speaker: "Kobieta w Okularach z Grubymi Ramkami", text: state => "Dobry Wieczór. Pozwoli " + (state.data.userGender === 'pan' ? "pan" : "pani") + ", że przejdę od razu do rzeczy. Fundusz został tak zaprogramowany, by jutro rano automatycznie przekazać go instytucji pierwotnie wybranej przez Szefa. To dlatego siedzimy tu jeszcze o tej porze. Naradziliśmy się i uzgodniliśmy mechanizm, który ostatecznie zadecyduje o tym, kto zostanie adresatem dotacji. Potrzebujemy do tego oczywiście " + (state.data.userGender === 'pan' ? "pana" : "pani") + " decyzji. Zależy nam na tym, by " + (state.data.userGender === 'pan' ? "wskazał pan" : "wskazała pani") + " instytucję, która w świetle potencjalnego zagrożenia najbardziej zasługuje na dotację."},
+            "",
+            "Siwowłosy odwraca się do Ciebie.",
+            "",
+            "// Podaj numer instytucji, którą tym razem wybierasz"
+        ],
+        type: 'data_collection_2_choice',
+        next: 'data_collection_2_certainty'
+    },
+    'data_collection_2_certainty': {
+        text: [
+            {dialogue: true, speaker: "Siwowłosy", text: state => "Wybór jest dla " + (state.data.userGender === 'pan' ? "pana oczywisty (1), raczej oczywisty (2) czy może się pan waha (3)" : "pani oczywisty (1), raczej oczywisty (2) czy może się pani waha (3)") + "?"},
+            "",
+            "// Określ cyfrą stopień pewności"
+        ],
+        type: 'data_collection_2_certainty_input',
+        next: 'data_collection_2_reservations'
+    },
+    'data_collection_2_reservations': {
+        text: [
+            {dialogue: true, speaker: "Siwowłosy", text: state => "A tym razem, ma " + (state.data.userGender === 'pan' ? "pan" : "pani") + " jakieś zastrzeżenia względem działalności instytucji?"},
+            "",
+            "// W jednym-dwóch zdaniach sformułuj swoje zastrzeżenia względem działalności organizacji lub wpisz \"BRAK\", jeśli zastrzeżeń nie masz"
+        ],
+        type: 'data_collection_2_reservations_input',
+        next: 'ending_scene'
+    },
+    'ending_scene': {
+        text: [
+            {dialogue: true, speaker: "Kobieta w Okularach z Grubymi Ramkami", text: "Dziękujemy serdecznie. Przyznam, że dokładnie na takie odpowiedzi liczyłam."},
+            "",
+            "Siwowłosy uśmiecha się promiennie.",
+            "",
+            {dialogue: true, speaker: "Siwowłosy", text: state => "Jeszcze raz dziękujemy, bardzo nam " + (state.data.userGender === 'pan' ? "pan pomógł" : "pani pomogła") + ". " + (state.data.userGender === 'pan' ? "Pozwoli pan, że pana odwiozę?" : "Pozwoli pani, że panią odwiozę?")},
+            "",
+            "// Naciśnij ENTER"
+        ],
+        type: 'input',
+        next: 'survey_intro'
+    },
+    'survey_intro': {
+        text: [
+            "Siedzisz na fotelu pasażera. Siwowłosy wyciąga coś z bagażnika, siada obok Ciebie i kładzie Ci na kolanach aktówkę.",
+            "",
+            {dialogue: true, speaker: "Siwowłosy", text: state => "Śmiało, niech " + (state.data.userGender === 'pan' ? "pan otworzy" : "pani otworzy") + "."},
+            "",
+            "Wahasz się dobrą chwilę, bo spodziewać możesz się własciwie wszystkiego. Twoje wątpliwości jednak niuchronnie topnieją. Przegrywasz z ciekawością. Odpinasz klamry, otwierasz aktówkę…",
+            "",
+            "Wewnątrz znajduje się czek, który pozwoli na zakup niewielkiego samochodu. Zaraz obok leży kilka dokumentów oraz pióro, warte tyle, ile flagowy smartfon. Patrzysz pytająco na Siwowłosego.",
+            "",
+            {dialogue: true, speaker: "Siwowłosy", text: state => "Chyba nie myślał " + (state.data.userGender === 'pan' ? "pan" : "pani") + ", że uznamy " + (state.data.userGender === 'pan' ? "pana" : "pani") + " pracę za wolontariat? Walizka i jej zawartość należą do " + (state.data.userGender === 'pan' ? "pana" : "pani") + " - za wyjątkiem tych kilku kartek. Mam małą prośbę, która właśnie tych kartek dotyczy - aby dopełnić już naprawdę ostatnich formalności, chcielibyśmy, by " + (state.data.userGender === 'pan' ? "wypełnił pan" : "wypełniła pani") + " króciutką ankietkę. Możemy na " + (state.data.userGender === 'pan' ? "pana" : "panią") + " liczyć?"},
+            "",
+            "Uśmiechasz się, dziękujesz, i rozkładasz kartki na twardym boku aktówki. Otwierasz drogocenne pióro.",
+            "",
+            "// Naciśnij ENTER, aby spojrzeć na kartki."
+        ],
+        type: 'input',
+        next: 'survey_definition'
+    },
+    'survey_definition': {
+        text: [
+            "Widzisz dwa pytania zamknięte i jedno otwarte.",
+            "",
+            "// Naciśnij ENTER aby kontynuować"
+        ],
+        type: 'input',
+        next: 'survey_likert_intro'
+    },
+    'survey_likert_intro': {
+        text: [
+            "// SEKCJA ZAMKNIĘTA",
+            "// Instrukcia: opowiedz cyfrą w przedziale od 1 do 5",
+            "// 1 oznacza zdecydowanie nie, 5 oznacza zdecydowanie tak",
+            "",
+            "// Naciśnij ENTER"
+        ],
+        type: 'input',
+        next: 'survey_likert_1'
+    },
+    'survey_likert_1': {
+        text: ["1. Złożone problemy międzyludzkie i społeczne ostatecznie zawsze mają jedno, moralnie słuszne rozwiązanie – jedna ze stron ma całkowitą rację. (1-5)"],
+        type: 'survey_likert',
+        next: 'survey_likert_2'
+    },
+    'survey_likert_2': {
+        text: ["2. Większość lęków i napięć, których doświadcza współczesny człowiek, wynika bezpośrednio z narzuconych mu niesprawiedliwych ról społecznych i kulturowych, a nie z samej natury ludzkiego istnienia. (1-5)"],
+        type: 'survey_likert',
+        next: 'survey_open_intro'
+    },
+    'survey_open_intro': {
+        text: ["// SEKCJA OTWARTA", "// Naciśnij ENTER"],
+        type: 'input',
+        next: 'survey_open_1'
+    },
+    'survey_open_1': {
+        text: [state => "1. Gdybyś " + (state.data.userGender === 'pan' ? 'miał' : 'miała') + " wskazać jedną, najgroźniejszą iluzję, w jakiej żyje, i w którą wierzy współczesne społeczeństwo, czym by ona była? (odpowiedz w 1-2 zdaniach)"],
+        type: 'survey_input',
+        next: 'ending_final'
+    },
+    'ending_final': {
+        text: [
+            state => "Siwowłosy dostrzega, że " + (state.data.userGender === 'pan' ? "skończyłeś" : "skończyłaś") + " i zamykasz pióro. Nim zdążysz wręczyć mu kartki słyszysz...",
+            "",
+            {dialogue: true, speaker: "Siwowłosy", text: "Powinny zmieścić się w schowku pasażera."},
+            "",
+            "Rzeczywiście, doskonale się mieszczą. Kiedy zamykasz klapkę schowka, orientujesz się, że dojechaliście na miejsce. Siwowłosy dziękuje Ci jeszcze raz, Ty dziękujesz jemu, i rozstajecie się w świetnych nastrojach.",
+            "",
+            "Wchodzisz do mieszkania, siadasz przy kuchennym stole. Drżącymi rękami otwierasz aktówkę. Oprócz pióra i czeku odnajdujesz tam również jeszcze jedą kartkę. Oto jej treść:",
+            "",
+            "Dziękuję za wypełnienie formularza. Świetnie Ci poszło! Jeśli masz jakieś uwagi i pytania będzie można je wprowadzić za chwilkę.",
+            "",
+            "W nagrodę za wykonanie badania udostępniam filmy, które otwierają drzwi do krytyki ideologii:",
+            "",
+            state => "<a href='https://archive.org/details/the-perverts-guide-to-ideology-1080p-es-en' target='_blank' style='color: var(--phosphor-main); text-decoration: underline;'>>>watch_ideology</a>",
+            state => "<a href='https://archive.org/details/the.-perverts.-guide.-to.-cinema.-2006.1080p-es-en' target='_blank' style='color: var(--phosphor-main); text-decoration: underline;'>>>watch_cinema</a>",
+            "",
+            "Jeśli chciałbyś przekazać autorowi formularza swoje wrażenia, lub masz do niego inną wiadomość, możesz wprowadzić ją teraz i zatwierdzić klawiszem ENTER. Jeśli nie, zakończ badania wpisując \"K\" i zatwierdzając klawiszem ENTER.",
+        ],
+        type: 'feedback_input',
+        next: 'ending_generated'
+    },
+    'ending_generated': {
+        text: ["Wyniki Twoich badań zostaną zapisane na dysku.", "Przesyłanie danych do bazy...", "Proszę czekać..."],
+        type: 'end'
+    },
+    'ending_success': {
+        text: ["Dane zostały zapisane w bazie online.", "", "Dziękujemy za udział w badaniu.", "", "KONIEC."],
+        type: 'end'
+    },
+    'ending_failed': {
+        text: [
+            state => "Zapis online nie powiódł się (możliwy brak internetu lub konfiguracji).",
+            state => "Twoje wyniki zostały jednak bezpiecznie zapisane na dysku w pliku: \"" + state.data.generatedFilename + "\".",
+            "",
+            "Proszę prześlij ten plik ręcznie organizatorowi badania.",
+            "",
+            "KONIEC."
+        ],
+        type: 'end'
+    },
+    'ending_early': {
+        text: ["Rozumiem. Dziękuję za poświęcony czas.", "", "KONIEC."],
+        type: 'end'
+    }
+};
+
+const state = {
+    node: 'intro_1',
+    data: {
+        userGender: '', userAge: '', survey: {},
+        choice1_id: null, choice1_certainty: null, choice1_reservations: '',
+        choice2_id: null, choice2_certainty: null, choice2_reservations: '',
+        videoShown: null,
+        generatedFilename: ''
+    },
+    path: []
+};
+
+const dom = {
+    narrative: document.getElementById('narrative-window'),
+    input: document.getElementById('cmd-input'),
+    displayText: document.getElementById('display-text-container'),
+    dtLeft: document.getElementById('dt-left'),
+    dtRight: document.getElementById('dt-right'),
+    timer: document.getElementById('timer-display')
+};
+
+
+function toggleStages() {
+    const list = document.getElementById('stages-list');
+    if (list.style.display === 'block') {
+        list.style.display = 'none';
+        return;
+    }
+
+    let html = '<table>';
+    let i = 1;
+    for (let key in gameData) {
+        html += `<tr><td>${i}</td><td>${key}</td></tr>`;
+        i++;
+    }
+    html += '</table>';
+    list.innerHTML = html;
+    list.style.display = 'block';
+}
+
+function jumpToStage(num) {
+    let i = 1;
+    for (let key in gameData) {
+        if (i === num) {
+            runNode(key);
+            return true;
+        }
+        i++;
+    }
+    return false;
+}
+
+let currentPrintId = 0;
+let skipThisPrint = false;
+let isPrinting = false;
+let timerInterval = null;
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') skipThisPrint = true;
+});
+
+async function printText(lines, speed = TYPE_SPEED) {
+    const myPrintId = ++currentPrintId;
+    isPrinting = true;
+    skipThisPrint = false;
+
+    try {
+        dom.input.disabled = true;
+        const cursor = document.querySelector('.cursor-block');
+        if (cursor) cursor.style.opacity = '0';
+
+        const old = dom.narrative.innerHTML;
+        if (old) dom.narrative.innerHTML = '<span class="history-text">' + old.replace(/class="current-text"/g, '') + '</span>';
+
+        const block = document.createElement('div');
+        block.className = 'current-text';
+
+        // Intro Animation Logic
+        if (gameData[state.node]?.introAnimation) {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'intro-wrapper';
+            wrapper.appendChild(block);
+            dom.narrative.appendChild(wrapper);
+
+            // Trigger animation after a delay or after printing
+            setTimeout(() => {
+                wrapper.classList.add('shifted');
+            }, 3000); // 3s delay for user to see centered content
+        } else {
+            dom.narrative.appendChild(block);
+        }
+
+        for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+            if (myPrintId !== currentPrintId) return;
+
+            let line = lines[lineIndex];
+            if (typeof line === 'function') line = line(state);
+
+            if (typeof line === 'string' && line.startsWith('//')) {
+                const p = document.createElement('div');
+                p.className = 'instruction-text';
+                const text = line.substring(2).trim();
+                block.appendChild(p);
+                // Print fast
+                p.textContent = text;
+                await new Promise(r => setTimeout(r, speed));
+                continue;
+            }
+
+            if (typeof line === 'string' && line.trim().startsWith('<')) {
+                const p = document.createElement('div');
+                p.innerHTML = line;
+                block.appendChild(p);
+                // Print fast (no typewriter for html)
+                await new Promise(r => setTimeout(r, speed * 2));
+                continue;
+            }
+
+            if (!line) { block.appendChild(document.createElement('br')); continue; }
+
+
+            if (typeof line === 'object' && line.ascii) {
+                const div = document.createElement('div');
+                div.className = (line.className || 'ascii-art');
+                div.textContent = line.ascii;
+                block.appendChild(div);
+
+                await new Promise(r => setTimeout(r, 100));
+                continue;
+            }
+
+            if (typeof line === 'object' && line.definition) {
+                const div = document.createElement('div');
+                div.className = 'survey-definition';
+                div.textContent = line.text;
+                block.appendChild(div);
+                await new Promise(r => setTimeout(r, 50));
+            } else if (typeof line === 'object' && line.dialogue) {
+                const dialogueDiv = document.createElement('div');
+                dialogueDiv.className = 'dialogue';
+                block.appendChild(dialogueDiv);
+
+                const speakerSpan = document.createElement('span');
+                speakerSpan.className = 'dialogue-speaker';
+                speakerSpan.textContent = line.speaker + ':';
+                dialogueDiv.appendChild(speakerSpan);
+
+                const textSpan = document.createElement('span');
+                textSpan.className = 'dialogue-text';
+                dialogueDiv.appendChild(textSpan);
+
+                const dialogueText = typeof line.text === 'function' ? line.text(state) : line.text;
+                await new Promise(r => setTimeout(r, 100));
+
+                for (let i = 0; i < dialogueText.length; i++) {
+                    if (myPrintId !== currentPrintId) return;
+                    if (skipThisPrint) { textSpan.textContent = dialogueText; break; }
+                    textSpan.textContent += dialogueText[i];
+                    dom.narrative.scrollTop = dom.narrative.scrollHeight;
+                    await new Promise(r => setTimeout(r, speed));
+                }
+            } else {
+                const p = document.createElement('div');
+                block.appendChild(p);
+
+                for (let i = 0; i < line.length; i++) {
+                    if (myPrintId !== currentPrintId) return;
+                    if (skipThisPrint) { p.textContent = line; break; }
+                    p.textContent += line[i];
+                    dom.narrative.scrollTop = dom.narrative.scrollHeight;
+                    await new Promise(r => setTimeout(r, speed));
+                }
+            }
+        }
+
+        skipThisPrint = false;
+        isPrinting = false;
+        dom.input.disabled = false;
+        dom.input.focus();
+        if (cursor) cursor.style.opacity = '1';
+    } catch (error) {
+        isPrinting = false;
+        console.error('Error in printText:', error);
+        isPrinting = false;
+        dom.input.disabled = false;
+    }
+}
+
+
+async function runNode(id) {
+    try {
+        state.node = id;
+        const node = gameData[id];
+        if (!node) return;
+
+        if (node.lockScroll) {
+            dom.narrative.scrollTop = dom.narrative.scrollHeight;
+            dom.narrative.classList.add('no-scroll');
+        } else {
+            dom.narrative.classList.remove('no-scroll');
+        }
+
+        if (node.type === 'video_link') {
+            const videoUrl = videoLinks[state.data.videoShown];
+            if (videoUrl) {
+                state.data.videoStartTime = Date.now();
+                window.open(videoUrl, '_blank');
+            }
+            await runNode(node.next);
+            return;
+        }
+
+        if (node.next && node.type === 'narrative') {
+            await printText(node.text);
+            if (node.autoDelay) await new Promise(r => setTimeout(r, node.autoDelay));
+            await runNode(node.next);
+            return;
+        }
+
+        if (node.type === 'end') {
+            if (node.next && node.type === 'narrative') {
+                await printText(node.text);
+                if (node.autoDelay) await new Promise(r => setTimeout(r, node.autoDelay));
+                await runNode(node.next);
+                return;
+            }
+
+            await printText(node.text);
+
+            // Handle final logic if it's the generated ending
+            if (state.node === 'ending_generated') {
+                const prepared = prepareData();
+
+                // Google Sheets Logic
+                if (GOOGLE_SCRIPT_URL && GOOGLE_SCRIPT_URL !== "YOUR_GOOGLE_SCRIPT_URL_HERE") {
+                    fetch(GOOGLE_SCRIPT_URL, {
+                        method: 'POST',
+                        mode: 'no-cors', // Important for Google Apps Script Web App
+                        cache: 'no-cache',
+                        headers: {
+                            'Content-Type': 'text/plain'
+                        },
+                        redirect: 'follow',
+                        body: JSON.stringify(prepared.data)
+                    })
+                    .then(() => {
+                        console.log("Data sent to Google Sheets successfully.");
+                        downloadFile(prepared.data, prepared.filename);
+                        runNode('ending_success');
+                    })
+                    .catch((error) => {
+                        console.error('Google Sheet Error:', error);
+                        downloadFile(prepared.data, prepared.filename);
+                        runNode('ending_failed');
+                    });
+                } else {
+                    console.warn("Google Script URL not configured.");
+                    downloadFile(prepared.data, prepared.filename);
+                    setTimeout(() => runNode('ending_failed'), 2000);
+                }
+            }
+            return;
+        }
+
+        await printText(node.text);
+
+    } catch (error) {
+        console.error('Error in runNode:', error);
+    }
+}
+
+
+async function handleInput(val) {
+    try {
+        const node = gameData[state.node];
+        state.path.push(val);
+        const lower = val.toLowerCase();
+
+        if (lower === 'ls') {
+            toggleStages();
+            return;
+        }
+        if (lower.startsWith('cd')) {
+            const num = parseInt(lower.substring(2));
+            if (!isNaN(num)) {
+                if (jumpToStage(num)) {
+                    // Success
+                } else {
+                    await printText(["Nie znaleziono etapu " + num]);
+                }
+                return;
+            }
+        }
+
+        if (node.type === 'input_name') {
+            if (val) {
+                state.data.userName = val;
+                await runNode(node.next);
+            } else {
+                await printText(["// Proszę podać imię."]);
+            }
+            return;
+        }
+
+
+
+        if (state.node === 'video_check') {
+             if (state.data.videoStartTime) {
+                state.data.videoWatchTime = Math.floor((Date.now() - state.data.videoStartTime) / 1000);
+             }
+        }
+
+        if (node.type === 'input') {
+            await runNode(node.next);
+            return;
+        }
+
+        if (node.type === 'input_gender') {
+            if (val === '1' || lower.includes('pan') || lower.includes('do pana')) {
+                state.data[node.varName] = 'pan';
+                await runNode(node.next);
+            } else if (val === '2' || lower.includes('pani') || lower.includes('do pani')) {
+                state.data[node.varName] = 'pani';
+                await runNode(node.next);
+            } else {
+                await printText(["//wpisz numer 1 lub 2"]);
+            }
+            return;
+        }
+
+        if (node.type === 'input_age') {
+            const age = parseInt(val, 10);
+            if (!isNaN(age) && age >= 3 && age <= 99) {
+                state.data[node.varName] = age;
+                await runNode(node.next);
+            } else await printText(["// Proszę podać wiek jako liczbę (3-99)."]);
+            return;
+        }
+
+        if (node.type === 'survey_likert') {
+            const number = parseInt(val, 10);
+            if (isNaN(number) || number < 1 || number > 5) {
+                await printText(["// Proszę podać odpowiedź jako cyfrę (1-5)."]);
+                return;
+            }
+            state.data.survey[state.node] = val;
+            await runNode(node.next);
+            return;
+        }
+
+        if (node.type === 'survey_input') {
+            state.data.survey[state.node] = val;
+            await runNode(node.next);
+            return;
+        }
+
+        if (node.type === 'feedback_input') {
+            const trimmed = val.trim();
+            if (!trimmed) {
+                await printText(["// Wpisz wiadomość lub K, aby zakończyć."]);
+                return;
+            }
+            // Special case for 'K' to just finish
+            if (trimmed.toLowerCase() === 'k') {
+                state.data.feedback = ''; // No message
+            } else {
+                state.data.feedback = val;
+            }
+            await runNode(node.next);
+            return;
+        }
+
+        if (node.type === 'test_story') {
+            state.data.survey[state.node] = val;
+            dom.narrative.classList.remove('no-scroll');
+            await runNode(node.next);
+            return;
+        }
+
+        if (node.type === 'timed_question') {
+            clearInterval(timerInterval);
+            dom.timer.style.display = 'none';
+            state.data.survey[state.node] = val;
+            await runNode(node.next);
+            return;
+        }
+
+        if (node.type === 'data_collection_1_choice') {
+            const num = parseInt(val.match(/\d+/)?.[0]);
+            if (num >= 1 && num <= 6) {
+                state.data.choice1_id = num;
+                // For video link logic, assume videoShown corresponds to this choice
+                state.data.videoShown = num.toString();
+                await runNode(node.next);
+                return;
+            }
+            await printText(["// Podaj numer instytucji (1-6)."]);
+            return;
+        }
+
+        if (node.type === 'data_collection_1_certainty_input') {
+            const num = parseInt(val.match(/\d+/)?.[0]);
+            if (num >= 1 && num <= 3) {
+                state.data.choice1_certainty = num;
+                await runNode(node.next);
+                return;
+            }
+            await printText(["// Wpisz 1, 2 lub 3."]);
+            return;
+        }
+
+        if (node.type === 'data_collection_1_reservations_input') {
+            state.data.choice1_reservations = val;
+            await runNode(node.next);
+            return;
+        }
+
+        if (node.type === 'data_collection_2_choice') {
+            const num = parseInt(val.match(/\d+/)?.[0]);
+            if (num >= 1 && num <= 6) {
+                state.data.choice2_id = num;
+                await runNode(node.next);
+                return;
+            }
+            await printText(["// Podaj numer instytucji (1-6)."]);
+            return;
+        }
+
+        if (node.type === 'data_collection_2_certainty_input') {
+            const num = parseInt(val.match(/\d+/)?.[0]);
+            if (num >= 1 && num <= 3) {
+                state.data.choice2_certainty = num;
+                await runNode(node.next);
+                return;
+            }
+            await printText(["// Wpisz 1, 2 lub 3."]);
+            return;
+        }
+
+        if (node.type === 'data_collection_2_reservations_input') {
+            state.data.choice2_reservations = val;
+            await runNode(node.next);
+            return;
+        }
+
+        if (node.type === 'retry_choice') {
+            if (lower.includes('tak') || lower === 'y') await runNode(node.keywords['tak']);
+            else if (lower.includes('nie') || lower === 'n') await runNode(node.keywords['nie']);
+            else await printText(["// Wpisz: TAK lub NIE"]);
+            return;
+        }
+
+        if (node.keywords) {
+            let bestMatch = null;
+            let maxLen = 0;
+
+            for (let key in node.keywords) {
+                if (lower.includes(key)) {
+                    if (key.length > maxLen) {
+                        maxLen = key.length;
+                        bestMatch = node.keywords[key];
+                    }
+                }
+            }
+
+            if (bestMatch) {
+                const target = bestMatch;
+                if (target === 'knock_door') {
+                    const chosenNum = parseInt(val.match(/\d/)?.[0]);
+                    if (chosenNum >= 1 && chosenNum <= 6) {
+                        state.data.firstChoice = chosenNum;
+                    }
+                }
+                await runNode(target);
+                return;
+            }
+        }
+
+        await printText(["// Spróbuj inaczej sformułować komendę."]);
+    } catch (error) {
+        console.error('Error in handleInput:', error);
+    }
+}
+
+function startTimer(duration) {
+    let timeLeft = duration;
+    dom.timer.style.display = 'block';
+
+    const updateTimer = () => {
+        const mins = Math.floor(timeLeft / 60);
+        const secs = timeLeft % 60;
+        dom.timer.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+
+        if (timeLeft <= 0) {
+            clearInterval(timerInterval);
+            dom.timer.style.display = 'none';
+            handleInput('[CZAS_MINAL]');
+        }
+        timeLeft--;
+    };
+
+    updateTimer();
+    timerInterval = setInterval(updateTimer, 1000);
+}
+
+function prepareData() {
+    const now = new Date();
+    const dateStr = now.toISOString().split('T')[0];
+    const timeStr = now.toTimeString().split(' ')[0].replace(/:/g, '-');
+    const filename = `${state.data.userName || 'Anonim'}_${state.data.userAge || 'X'}_${dateStr}_${timeStr}.json`;
+    state.data.generatedFilename = filename;
+
+    const data = {
+        metryka: {
+            imie: state.data.userName,
+            wiek: state.data.userAge,
+            plec: (state.data.userGender === 'pan' ? 'mężczyzna' : 'kobieta')
+        },
+        ankieta: {
+            zamkniete: {
+                q1: state.data.survey['survey_likert_1'] || 'brak',
+                q2: state.data.survey['survey_likert_2'] || 'brak'
+            },
+            otwarte: {
+                q1: state.data.survey['survey_open_1'] || 'brak'
+            }
+        },
+        wybory: {
+            idealny_kandydat: state.data.survey['biuro'] || 'brak',
+            wybor_1_instytucja: state.data.choice1_id ? orgNames[state.data.choice1_id - 1] : 'brak',
+            wybor_1_pewnosc: state.data.choice1_certainty || 'brak',
+            wybor_1_zastrzezenia: state.data.choice1_reservations || 'brak',
+            obejrzany_film: state.data.videoShown ? orgNames[parseInt(state.data.videoShown) - 1] : 'brak',
+            czas_ogladania_wideo_procent: (state.data.videoWatchTime && state.data.videoShown) ? Math.round((state.data.videoWatchTime / (videoLengths[state.data.videoShown] || 60)) * 100) + '%' : 'brak',
+            wybor_2_instytucja: state.data.choice2_id ? orgNames[state.data.choice2_id - 1] : 'brak',
+            wybor_2_pewnosc: state.data.choice2_certainty || 'brak',
+            wybor_2_zastrzezenia: state.data.choice2_reservations || 'brak'
+        },
+        testy: {
+            historia_q1: state.data.survey['test_story_1'] || 'brak',
+            historia_q2: state.data.survey['test_story_2'] || 'brak',
+            historia_q3: state.data.survey['test_story_3'] || 'brak',
+            film_q1: state.data.survey['test_film_1'] || 'brak',
+            film_q2: state.data.survey['test_film_2'] || 'brak',
+            film_q3: state.data.survey['test_film_3'] || 'brak'
+        },
+        tresc_wyjasnienia: document.querySelector('.special-ending') ? document.querySelector('.special-ending').innerText : 'Brak',
+        feedback_od_uzytkownika: state.data.feedback || 'brak'
+    };
+
+    state.data.jsonData = data; // Store for email
+    return { data, filename };
+}
+
+function downloadFile(data, filename) {
+    const json = JSON.stringify(data, null, 2);
+    const blob = new Blob([json], {type: "application/json"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+}
+
+function updateDisplay() {
+    if (!dom.displayText) return;
+    const val = dom.input.value.toUpperCase();
+    const pos = dom.input.selectionStart;
+
+    const left = val.substring(0, pos);
+    const right = val.substring(pos);
+
+    dom.dtLeft.textContent = left;
+    dom.dtRight.textContent = right;
+}
+
+// Intro sequence
+// Modified: Blink in terminal, wait, then print
+window.onload = () => {
+    // Re-bind elements since IDs changed
+    dom.displayText = document.getElementById('display-text-container');
+    dom.dtLeft = document.getElementById('dt-left');
+    dom.dtRight = document.getElementById('dt-right');
+
+    dom.input.addEventListener('input', updateDisplay);
+    dom.input.addEventListener('keyup', updateDisplay);
+    dom.input.addEventListener('click', updateDisplay);
+
+    dom.input.addEventListener('keydown', e => {
+            if (e.key === 'Enter') {
+                if (isPrinting) {
+                    skipThisPrint = true;
+                    e.preventDefault();
+                    return;
+                }
+
+                const val = dom.input.value.trim();
+            dom.input.value = '';
+            // Reset visual display
+            dom.dtLeft.textContent = '';
+            dom.dtRight.textContent = '';
+
+            const echo = document.createElement('div');
+            echo.className = 'history-text';
+            echo.textContent = '> ' + val.toUpperCase();
+            dom.narrative.appendChild(echo);
+            dom.narrative.scrollTop = dom.narrative.scrollHeight;
+
+            if (!val && !['input', 'input_age', 'input_gender', 'feedback_input'].includes(gameData[state.node]?.type)) return;
+
+            // Start timer for timed questions
+            if (gameData[state.node]?.type === 'timed_question' && val) {
+                // Process answer immediately
+            } else if (gameData[state.node]?.type === 'timed_question') {
+                startTimer(gameData[state.node].duration);
+                return;
+            }
+
+            handleInput(val);
+        }
+    });
+    dom.input.focus();
+    document.addEventListener('click', () => dom.input.focus());
+
+    // START INTRO (Standard load)
+    setTimeout(() => runNode('intro_1'), 200);
+};
+</script>
+</body>
+</html>
